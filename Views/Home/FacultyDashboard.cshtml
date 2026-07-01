@@ -1,0 +1,222 @@
+﻿@model FacultyManagementSystem.Controllers.FacultyDashboardViewModel
+@{
+    ViewData["Title"] = "Dashboard";
+}
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script>
+        Chart.defaults.font.family = 'Inter, system-ui, sans-serif';
+        Chart.defaults.color = '#818cf8';
+        const INDIGO = '#6366f1', SKY = '#38bdf8', VIOLET = '#a78bfa';
+
+        // Attendance trend line
+        new Chart(document.getElementById('faculty-attendance-chart'), {
+            type: 'line',
+            data: {
+                labels: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.AttendanceChartLabels)),
+                datasets: [{
+                    label: 'Attendance %',
+                    data:  @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.AttendanceChartData)),
+                    borderColor: SKY,
+                    backgroundColor: ctx => {
+                        const g = ctx.chart.ctx.createLinearGradient(0,0,0,180);
+                        g.addColorStop(0,'rgba(56,189,248,0.18)'); g.addColorStop(1,'rgba(56,189,248,0.02)'); return g;
+                    },
+                    fill: true, tension: 0.4,
+                    pointBackgroundColor: SKY, pointRadius: 4, borderWidth: 2.5,
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend:{ display:false } },
+                scales: {
+                    x: { grid:{ display:false }, border:{ display:false } },
+                    y: { grid:{ color:'#eef2ff' }, border:{ display:false }, min:75, max:105, ticks:{ callback: v => v+'%' } }
+                }
+            }
+        });
+
+        // Workload doughnut
+        const wlColors = [INDIGO, SKY, VIOLET, '#fbbf24', '#34d399'];
+        new Chart(document.getElementById('faculty-workload-chart'), {
+            type: 'doughnut',
+            data: {
+                labels: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.WorkloadChartLabels)),
+                datasets: [{
+                    data:  @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.WorkloadChartData)),
+                    backgroundColor: wlColors.slice(0, @Model.WorkloadChartLabels.Count),
+                    borderWidth: 0, hoverOffset: 6,
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false, cutout: '65%',
+                plugins: {
+                    legend: { display:true, position:'bottom', labels:{ boxWidth:10,boxHeight:10,borderRadius:4,padding:14,font:{ size:11 } } },
+                    tooltip: { callbacks:{ label: ctx => ` ${ctx.raw} hrs/wk` } }
+                }
+            }
+        });
+    </script>
+}
+
+<!-- Welcome Banner -->
+<div class="card p-6 bg-gradient-to-r from-brand-900 via-brand-800 to-indigo-700 text-white overflow-hidden relative mb-6">
+    <div class="absolute -right-8 -top-8 w-40 h-40 rounded-full bg-white/5 pointer-events-none"></div>
+    <div class="absolute -right-4 -bottom-12 w-48 h-48 rounded-full bg-sky-400/10 pointer-events-none"></div>
+    <div class="relative z-10">
+        <p class="text-indigo-300 text-sm font-medium">Welcome back,</p>
+        <h2 class="font-display text-2xl font-bold text-white mt-0.5">@Model.FullName</h2>
+        <p class="text-indigo-200 text-sm mt-1">@Model.DepartmentName · @Model.Designation</p>
+        <div class="flex items-center gap-4 mt-4 flex-wrap">
+            <div class="bg-white/10 rounded-xl px-4 py-2 backdrop-blur">
+                <p class="text-xs text-indigo-300">Credit Hrs/Wk</p>
+                <p class="font-display font-bold text-xl text-white">@Model.CreditHours</p>
+            </div>
+            <div class="bg-white/10 rounded-xl px-4 py-2 backdrop-blur">
+                <p class="text-xs text-indigo-300">Courses</p>
+                <p class="font-display font-bold text-xl text-white">@Model.ActiveCourses</p>
+            </div>
+            <div class="bg-white/10 rounded-xl px-4 py-2 backdrop-blur">
+                <p class="text-xs text-indigo-300">Attendance</p>
+                <p class="font-display font-bold text-xl text-sky-300">@Model.AttendancePct%</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- STAT CARDS -->
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <div class="card p-5 space-y-2">
+        <div class="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center">
+            <i data-lucide="book-open" class="w-5 h-5 text-indigo-500"></i>
+        </div>
+        <p class="font-display text-2xl font-bold text-brand-950">@Model.ActiveCourses</p>
+        <p class="text-xs font-semibold text-indigo-400 uppercase tracking-wider">Active Courses</p>
+    </div>
+    <div class="card p-5 space-y-2">
+        <div class="w-10 h-10 rounded-xl bg-sky-50 flex items-center justify-center">
+            <i data-lucide="clock" class="w-5 h-5 text-sky-500"></i>
+        </div>
+        <p class="font-display text-2xl font-bold text-brand-950">@Model.CreditHours <span class="text-sm font-medium text-indigo-400">hrs/wk</span></p>
+        <p class="text-xs font-semibold text-sky-400 uppercase tracking-wider">Credit Hours</p>
+    </div>
+    <div class="card p-5 space-y-2">
+        <div class="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center">
+            <i data-lucide="clipboard-check" class="w-5 h-5 text-emerald-500"></i>
+        </div>
+        <p class="font-display text-2xl font-bold text-brand-950">@Model.AttendancePct<span class="text-sm font-medium text-indigo-400">%</span></p>
+        <p class="text-xs font-semibold text-emerald-500 uppercase tracking-wider">My Attendance</p>
+    </div>
+    <div class="card p-5 space-y-2">
+        <div class="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center">
+            <i data-lucide="calendar-off" class="w-5 h-5 text-amber-500"></i>
+        </div>
+        <p class="font-display text-2xl font-bold text-brand-950">@Model.LeavesTaken <span class="text-sm font-medium text-indigo-400">days</span></p>
+        <p class="text-xs font-semibold text-amber-400 uppercase tracking-wider">Leaves Taken</p>
+    </div>
+</div>
+
+<!-- CHARTS -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+    <div class="card p-5 space-y-4">
+        <div>
+            <p class="text-xs font-semibold text-indigo-400 uppercase tracking-wider">My Attendance</p>
+            <h3 class="font-display font-semibold text-brand-900 text-base">Weekly Trend</h3>
+        </div>
+        <div class="relative h-52"><canvas id="faculty-attendance-chart"></canvas></div>
+    </div>
+    <div class="card p-5 space-y-4">
+        <div>
+            <p class="text-xs font-semibold text-indigo-400 uppercase tracking-wider">Workload</p>
+            <h3 class="font-display font-semibold text-brand-900 text-base">Hours per Course</h3>
+        </div>
+        <div class="relative h-52"><canvas id="faculty-workload-chart"></canvas></div>
+    </div>
+</div>
+
+<!-- MY COURSES + QUICK ACTIONS -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+    <!-- My Courses -->
+    <div class="card p-5 space-y-4 lg:col-span-2">
+        <div>
+            <p class="text-xs font-semibold text-indigo-400 uppercase tracking-wider">My Courses</p>
+            <h3 class="font-display font-semibold text-brand-900 text-base">@ViewData["Semester"]</h3>
+        </div>
+        <div class="space-y-3">
+            @{
+                var courseBg = new[] { "bg-indigo-50 border-indigo-100", "bg-sky-50 border-sky-100", "bg-violet-50 border-violet-100" };
+                var courseGrad = new[] { "from-indigo-500 to-sky-400", "from-sky-500 to-indigo-400", "from-violet-500 to-indigo-400" };
+                int ci = 0;
+            }
+            @foreach (var course in Model.MyCourses)
+            {
+                var attCls = course.AttendancePct >= 85 ? "att-high" : course.AttendancePct >= 70 ? "att-medium" : "att-low";
+                var bg = courseBg[ci % courseBg.Length];
+                var grad = courseGrad[ci % courseGrad.Length];
+                ci++;
+                var abbr = string.Concat(course.CourseName.Split(' ').Take(2).Select(w => w[0]));
+                <div class="flex items-center justify-between p-3 rounded-xl @bg border">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-xl bg-gradient-to-br @grad flex items-center justify-center text-white text-xs font-bold shrink-0">@abbr</div>
+                        <div>
+                            <p class="text-sm font-semibold text-brand-900">@course.CourseName</p>
+                            <p class="text-xs text-indigo-400">@course.CourseCode · @course.CreditHours Credit Hrs</p>
+                        </div>
+                    </div>
+                    <span class="@attCls text-xs font-semibold px-2.5 py-1 rounded-full shrink-0">@course.AttendancePct%</span>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="card p-5 space-y-4">
+        <div>
+            <p class="text-xs font-semibold text-indigo-400 uppercase tracking-wider">Quick Actions</p>
+            <h3 class="font-display font-semibold text-brand-900 text-base">What's next?</h3>
+        </div>
+        <div class="space-y-2">
+            <a asp-controller="Workload" asp-action="Index"
+               class="quick-action w-full flex items-center gap-3 p-3 rounded-xl bg-indigo-50 border border-indigo-100 text-left">
+                <div class="w-8 h-8 rounded-lg bg-indigo-500 flex items-center justify-center shrink-0">
+                    <i data-lucide="briefcase" class="w-4 h-4 text-white"></i>
+                </div>
+                <div>
+                    <p class="text-sm font-semibold text-brand-900">View Workload</p>
+                    <p class="text-xs text-indigo-400">My assigned credit hours</p>
+                </div>
+            </a>
+            <a asp-controller="Timetable" asp-action="Index"
+               class="quick-action w-full flex items-center gap-3 p-3 rounded-xl bg-sky-50 border border-sky-100 text-left">
+                <div class="w-8 h-8 rounded-lg bg-sky-500 flex items-center justify-center shrink-0">
+                    <i data-lucide="calendar-days" class="w-4 h-4 text-white"></i>
+                </div>
+                <div>
+                    <p class="text-sm font-semibold text-brand-900">View Timetable</p>
+                    <p class="text-xs text-indigo-400">My class schedule</p>
+                </div>
+            </a>
+            <a asp-controller="Attendance" asp-action="Index"
+               class="quick-action w-full flex items-center gap-3 p-3 rounded-xl bg-violet-50 border border-violet-100 text-left">
+                <div class="w-8 h-8 rounded-lg bg-violet-500 flex items-center justify-center shrink-0">
+                    <i data-lucide="clipboard-list" class="w-4 h-4 text-white"></i>
+                </div>
+                <div>
+                    <p class="text-sm font-semibold text-brand-900">View Attendance</p>
+                    <p class="text-xs text-indigo-400">My attendance record</p>
+                </div>
+            </a>
+            <a asp-controller="LeaveApproval" asp-action="Apply"
+               class="quick-action w-full flex items-center gap-3 p-3 rounded-xl bg-rose-50 border border-rose-100 text-left">
+                <div class="w-8 h-8 rounded-lg bg-rose-400 flex items-center justify-center shrink-0">
+                    <i data-lucide="mail" class="w-4 h-4 text-white"></i>
+                </div>
+                <div>
+                    <p class="text-sm font-semibold text-brand-900">Apply for Leave</p>
+                    <p class="text-xs text-indigo-400">Submit a leave request</p>
+                </div>
+            </a>
+        </div>
+    </div>
+</div>

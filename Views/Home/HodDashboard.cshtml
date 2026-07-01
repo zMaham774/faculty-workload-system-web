@@ -1,0 +1,202 @@
+﻿@model FacultyManagementSystem.Controllers.HodDashboardViewModel
+@{
+    ViewData["Title"] = "Dashboard";
+}
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script>
+        Chart.defaults.font.family = 'Inter, system-ui, sans-serif';
+        Chart.defaults.color = '#818cf8';
+        const INDIGO = '#6366f1', SKY = '#38bdf8';
+
+        // Workload bar
+        new Chart(document.getElementById('hod-workload-chart'), {
+            type: 'bar',
+            data: {
+                labels: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.WorkloadChartLabels)),
+                datasets: [{
+                    label: 'Credit Hours',
+                    data:  @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.WorkloadChartData)),
+                    backgroundColor: ctx => {
+                        const g = ctx.chart.ctx.createLinearGradient(0,0,0,200);
+                        g.addColorStop(0,'#6366f1'); g.addColorStop(1,'#38bdf8'); return g;
+                    },
+                    borderRadius: 8, borderSkipped: false,
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend:{ display:false } },
+                scales: {
+                    x: { grid:{ display:false }, border:{ display:false } },
+                    y: { grid:{ color:'#eef2ff' }, border:{ display:false }, ticks:{ stepSize:3 } }
+                }
+            }
+        });
+
+        // Attendance trend line
+        new Chart(document.getElementById('hod-trend-chart'), {
+            type: 'line',
+            data: {
+                labels: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.AttendanceTrendLabels)),
+                datasets: [{
+                    label: 'Attendance %',
+                    data:  @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.AttendanceTrendData)),
+                    borderColor: INDIGO,
+                    backgroundColor: ctx => {
+                        const g = ctx.chart.ctx.createLinearGradient(0,0,0,160);
+                        g.addColorStop(0,'rgba(99,102,241,0.18)'); g.addColorStop(1,'rgba(56,189,248,0.03)'); return g;
+                    },
+                    fill: true, tension: 0.4,
+                    pointBackgroundColor: INDIGO, pointRadius: 4, pointHoverRadius: 6, borderWidth: 2.5,
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend:{ display:false } },
+                scales: {
+                    x: { grid:{ display:false }, border:{ display:false } },
+                    y: { grid:{ color:'#eef2ff' }, border:{ display:false }, min:75, max:100, ticks:{ callback: v => v+'%' } }
+                }
+            }
+        });
+    </script>
+}
+
+<!-- Greeting -->
+<div class="flex items-start justify-between mb-6">
+    <div>
+        <p class="text-indigo-400 text-sm font-medium">Head of Department,</p>
+        <h2 class="font-display text-2xl font-bold text-brand-950">@Model.DepartmentName <span class="text-sky-500">Overview</span></h2>
+    </div>
+    <span class="inline-flex items-center gap-1.5 bg-indigo-50 text-indigo-700 text-xs font-semibold px-3 py-1.5 rounded-full border border-indigo-100">
+        <i data-lucide="building-2" class="w-3.5 h-3.5 text-sky-500"></i>
+        @Model.DepartmentName
+    </span>
+</div>
+
+<!-- STAT CARDS -->
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <div class="card p-5 space-y-3">
+        <div class="h-0.5 w-full bg-gradient-to-r from-indigo-500 to-indigo-400 rounded-full"></div>
+        <div class="flex items-start justify-between">
+            <div>
+                <p class="text-xs font-semibold text-indigo-400 uppercase tracking-wider">Faculty</p>
+                <p class="font-display text-3xl font-bold text-brand-950 mt-1">@Model.FacultyCount</p>
+                <p class="text-xs text-indigo-300 mt-0.5">In your dept.</p>
+            </div>
+            <div class="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center">
+                <i data-lucide="users" class="w-5 h-5 text-indigo-500"></i>
+            </div>
+        </div>
+    </div>
+    <div class="card p-5 space-y-3">
+        <div class="h-0.5 w-full bg-gradient-to-r from-sky-500 to-sky-400 rounded-full"></div>
+        <div class="flex items-start justify-between">
+            <div>
+                <p class="text-xs font-semibold text-sky-400 uppercase tracking-wider">Courses</p>
+                <p class="font-display text-3xl font-bold text-brand-950 mt-1">@Model.CourseCount</p>
+                <p class="text-xs text-indigo-300 mt-0.5">This semester</p>
+            </div>
+            <div class="w-10 h-10 rounded-xl bg-sky-50 flex items-center justify-center">
+                <i data-lucide="book-open" class="w-5 h-5 text-sky-500"></i>
+            </div>
+        </div>
+    </div>
+    <div class="card p-5 space-y-3">
+        <div class="h-0.5 w-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full"></div>
+        <div class="flex items-start justify-between">
+            <div>
+                <p class="text-xs font-semibold text-emerald-500 uppercase tracking-wider">Avg Attendance</p>
+                <p class="font-display text-3xl font-bold text-brand-950 mt-1">@Model.AvgAttendance%</p>
+                <p class="text-xs text-indigo-300 mt-0.5">Dept average</p>
+            </div>
+            <div class="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center">
+                <i data-lucide="clipboard-check" class="w-5 h-5 text-emerald-500"></i>
+            </div>
+        </div>
+    </div>
+    <div class="card p-5 space-y-3">
+        <div class="h-0.5 w-full bg-gradient-to-r from-amber-400 to-amber-300 rounded-full"></div>
+        <div class="flex items-start justify-between">
+            <div>
+                <p class="text-xs font-semibold text-amber-400 uppercase tracking-wider">Leave Requests</p>
+                <p class="font-display text-3xl font-bold text-brand-950 mt-1">@Model.PendingLeaves</p>
+                <p class="text-xs text-indigo-300 mt-0.5">Pending review</p>
+            </div>
+            <div class="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center">
+                <i data-lucide="mail-check" class="w-5 h-5 text-amber-500"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- CHARTS -->
+<div class="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-6">
+    <div class="card p-5 lg:col-span-3 space-y-4">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-xs font-semibold text-indigo-400 uppercase tracking-wider">Workload</p>
+                <h3 class="font-display font-semibold text-brand-900 text-base">Credit Hours per Faculty</h3>
+            </div>
+            <span class="text-xs font-medium bg-indigo-50 text-indigo-600 px-2.5 py-1 rounded-full border border-indigo-100">@Model.DepartmentName</span>
+        </div>
+        <div class="relative h-56"><canvas id="hod-workload-chart"></canvas></div>
+    </div>
+    <div class="card p-5 lg:col-span-2 space-y-4">
+        <div>
+            <p class="text-xs font-semibold text-indigo-400 uppercase tracking-wider">Attendance Trend</p>
+            <h3 class="font-display font-semibold text-brand-900 text-base">Monthly Rate</h3>
+        </div>
+        <div class="relative h-44"><canvas id="hod-trend-chart"></canvas></div>
+        <p class="text-xs text-indigo-400 font-medium flex items-center gap-1">
+            <i data-lucide="trending-up" class="w-3.5 h-3.5 text-emerald-500"></i>
+            <span class="text-emerald-600 font-semibold">+4.2%</span> vs last month
+        </p>
+    </div>
+</div>
+
+<!-- Faculty Attendance Table -->
+<div class="card p-5 space-y-4">
+    <div class="flex items-center justify-between">
+        <div>
+            <p class="text-xs font-semibold text-indigo-400 uppercase tracking-wider">Faculty Status</p>
+            <h3 class="font-display font-semibold text-brand-900 text-base">Attendance this Week</h3>
+        </div>
+        <a asp-controller="Attendance" asp-action="Index" class="text-xs font-semibold text-indigo-500 hover:text-indigo-700">Full attendance →</a>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="border-b border-indigo-50">
+                    <th class="text-left py-2 text-xs font-semibold text-indigo-400 uppercase tracking-wider">Faculty</th>
+                    <th class="text-left py-2 text-xs font-semibold text-indigo-400 uppercase tracking-wider">Courses</th>
+                    <th class="text-left py-2 text-xs font-semibold text-indigo-400 uppercase tracking-wider">Credit Hrs</th>
+                    <th class="text-left py-2 text-xs font-semibold text-indigo-400 uppercase tracking-wider">Attendance</th>
+                    <th class="text-left py-2 text-xs font-semibold text-indigo-400 uppercase tracking-wider">Status</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-indigo-50">
+                @foreach (var f in Model.FacultyStatus)
+                {
+                    var initials = string.Join("", f.FullName.Split(' ').Take(2).Select(w => w[0]));
+                    var attCls = f.AttendancePct >= 85 ? "att-high" : f.AttendancePct >= 70 ? "att-medium" : "att-low";
+                    var statusText = f.IsPresent ? "Present" : "On Leave";
+                    var statusCls = f.IsPresent ? "att-high" : "att-medium";
+                    <tr>
+                        <td class="py-3">
+                            <div class="flex items-center gap-2">
+                                <div class="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-400 to-sky-400 flex items-center justify-center text-white text-xs font-bold shrink-0">@initials</div>
+                                <span class="font-medium text-brand-900">@f.FullName</span>
+                            </div>
+                        </td>
+                        <td class="py-3 text-indigo-600">@f.CourseCount</td>
+                        <td class="py-3 text-indigo-600">@f.CreditHours</td>
+                        <td class="py-3 text-indigo-600">@f.AttendancePct%</td>
+                        <td class="py-3"><span class="@statusCls text-xs font-semibold px-2 py-0.5 rounded-full">@statusText</span></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

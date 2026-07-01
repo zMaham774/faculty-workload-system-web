@@ -1,0 +1,288 @@
+﻿@using System.Linq
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] — Faculty Management System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: { 50:'#eef2ff',100:'#e0e7ff',200:'#c7d2fe',400:'#818cf8',500:'#6366f1',600:'#4f46e5',700:'#4338ca',800:'#3730a3',900:'#312e81',950:'#1e1b4b' },
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                        display: ['Lexend', 'Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lexend:wght@600;700&display=swap" rel="stylesheet" />
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <style>
+        #sidebar {
+            transition: width 0.3s cubic-bezier(0.4,0,0.2,1);
+        }
+
+            #sidebar.collapsed {
+                width: 4.5rem;
+            }
+
+            #sidebar.expanded {
+                width: 16rem;
+            }
+
+            #sidebar.collapsed .nav-label,
+            #sidebar.collapsed .brand-name,
+            #sidebar.collapsed .brand-sub {
+                opacity: 0;
+                width: 0;
+                overflow: hidden;
+                white-space: nowrap;
+                transition: opacity 0.2s ease, width 0.3s ease;
+            }
+
+            #sidebar.expanded .nav-label,
+            #sidebar.expanded .brand-name,
+            #sidebar.expanded .brand-sub {
+                opacity: 1;
+                width: auto;
+                transition: opacity 0.25s ease 0.1s, width 0.3s ease;
+            }
+
+        .nav-item.active {
+            background: linear-gradient(90deg,#6366f1 0%,#38bdf8 100%);
+            color: #fff;
+            box-shadow: 0 2px 12px rgba(99,102,241,0.25);
+        }
+
+            .nav-item.active i {
+                color: #fff;
+            }
+
+        .nav-item:not(.active):hover {
+            background-color: rgba(255,255,255,0.08);
+        }
+
+        #sidebar-nav::-webkit-scrollbar {
+            width: 3px;
+        }
+
+        #sidebar-nav::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.15);
+            border-radius: 9999px;
+        }
+
+        #main-wrapper {
+            transition: margin-left 0.3s cubic-bezier(0.4,0,0.2,1);
+        }
+
+        #topbar {
+            box-shadow: 0 1px 0 0 #e0e7ff;
+        }
+
+        .page-content {
+            animation: fadeIn 0.3s ease;
+        }
+
+        @@keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(6px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .card {
+            background: #fff;
+            border-radius: 1.25rem;
+            box-shadow: 0 1px 3px rgba(49,46,129,0.07),0 4px 16px rgba(49,46,129,0.06);
+        }
+
+        .att-high {
+            background: #dcfce7;
+            color: #15803d;
+        }
+
+        .att-medium {
+            background: #fef9c3;
+            color: #854d0e;
+        }
+
+        .att-low {
+            background: #fee2e2;
+            color: #b91c1c;
+        }
+
+        .quick-action:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(99,102,241,0.15);
+        }
+
+        .quick-action {
+            transition: all 0.2s ease;
+        }
+
+        .prog-fill {
+            transition: width 1s cubic-bezier(0.4,0,0.2,1);
+        }
+    </style>
+</head>
+<body class="bg-indigo-50 font-sans text-brand-950 antialiased">
+
+    @{
+        var role = ViewData["UserRole"] as string ?? "Admin";
+        var userName = ViewData["UserName"] as string ?? "Admin";
+        var userInitial = userName.Length > 0 ? userName[0].ToString().ToUpper() : "A";
+        var semester = ViewData["Semester"] as string ?? "Spring 2026";
+        var currentPath = Context.Request.Path.Value ?? "";
+
+        var allItems = new[]
+        {
+        new { Icon="layout-dashboard", Label="Dashboard",     Href="/Home/Index"          },
+        new { Icon="users",            Label="Faculty",        Href="/Faculty/Index"       },
+        new { Icon="building-2",       Label="Departments",    Href="/Departments/Index"   },
+        new { Icon="book-open",        Label="Courses",        Href="/Courses/Index"       },
+        new { Icon="briefcase",        Label="Workload",       Href="/Workload/Index"      },
+        new { Icon="calendar-days",    Label="Timetable",      Href="/Timetable/Index"     },
+        new { Icon="clipboard-check",  Label="Attendance",     Href="/Attendance/Index"    },
+        new { Icon="mail-check",       Label="Leave Approval", Href="/LeaveApproval/Index" },
+        new { Icon="calendar",         Label="Calendar",       Href="/Calendar/Index"      },
+        new { Icon="bar-chart-2",      Label="Reports",        Href="/Reports/Index"       },
+        new { Icon="user-cog",         Label="Users",          Href="/Users/Index"         },
+        new { Icon="layers",           Label="Semesters",      Href="/Semesters/Index"     },
+        };
+
+        // HOD nav items
+        var hodItems = new[] { "/Home/Index", "/Faculty/Index", "/Courses/Index", "/Workload/Index", "/Timetable/Index", "/Attendance/Index", "/LeaveApproval/Index", "/Calendar/Index", "/Reports/Index" };
+
+        // Faculty nav items
+        var facultyItems = new[] { "/Home/Index", "/Workload/Index", "/Timetable/Index", "/Attendance/Index", "/Calendar/Index" };
+
+        // Select based on role
+        var navItems = role == "HOD"
+        ? allItems.Where(i => hodItems.Contains(i.Href)).ToArray()
+        : role == "Faculty"
+        ? allItems.Where(i => facultyItems.Contains(i.Href)).ToArray()
+        : allItems; // Admin gets everything — no filtering
+    }
+
+    <!-- SIDEBAR -->
+    <aside id="sidebar" class="expanded fixed top-0 left-0 h-screen z-40 flex flex-col bg-brand-950 overflow-hidden select-none">
+
+        <!-- Brand -->
+        <div class="flex items-center gap-3 px-4 py-5 shrink-0">
+            <div class="shrink-0 w-9 h-9 rounded-xl bg-gradient-to-br from-brand-500 to-sky-400 flex items-center justify-center shadow-lg">
+                <i data-lucide="graduation-cap" class="w-5 h-5 text-white"></i>
+            </div>
+            <div class="flex flex-col leading-tight">
+                <span class="brand-name font-display font-bold text-white text-sm tracking-wide">FACULTY</span>
+                <span class="brand-sub text-sky-400 text-[10px] font-medium tracking-widest uppercase">Management System</span>
+            </div>
+        </div>
+
+        <div class="mx-4 h-px bg-white/10 shrink-0"></div>
+
+        <!-- Nav -->
+        <nav id="sidebar-nav" class="flex-1 py-4 px-2 space-y-0.5" style="overflow-y:auto; overflow-x:hidden">
+            @foreach (var item in navItems)
+            {
+                var isActive = currentPath.StartsWith(item.Href.Split('?')[0], StringComparison.OrdinalIgnoreCase);
+                <a href="@item.Href"
+                   class="nav-item @(isActive ? "active" : "text-indigo-200") flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-all duration-150">
+                    <i data-lucide="@item.Icon" class="shrink-0 w-5 h-5 @(isActive ? "text-white" : "text-indigo-300")"></i>
+                    <span class="nav-label text-sm font-medium">@item.Label</span>
+                </a>
+            }
+        </nav>
+
+        <div class="mx-4 h-px bg-white/10 shrink-0"></div>
+
+        <!-- Logout -->
+        <div class="px-2 py-4 shrink-0">
+            <a asp-controller="Account" asp-action="Logout"
+               class="nav-item text-rose-300 flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-all duration-150 hover:bg-rose-500/10">
+                <i data-lucide="log-out" class="shrink-0 w-5 h-5 text-rose-400"></i>
+                <span class="nav-label text-sm font-medium">Logout</span>
+            </a>
+        </div>
+    </aside>
+
+    <!-- MAIN WRAPPER -->
+    <div id="main-wrapper" class="ml-64 flex flex-col min-h-screen">
+
+        <!-- TOPBAR -->
+        <header id="topbar" class="sticky top-0 z-30 bg-white flex items-center justify-between px-6 py-3">
+            <div class="flex items-center gap-4">
+                <button id="sidebar-toggle"
+                        class="w-9 h-9 rounded-lg flex items-center justify-center text-brand-700 hover:bg-brand-50 transition-colors"
+                        aria-label="Toggle sidebar">
+                    <i data-lucide="menu" class="w-5 h-5"></i>
+                </button>
+                <h1 class="font-display font-semibold text-brand-900 text-lg">Dashboard</h1>
+            </div>
+
+            <div class="flex items-center gap-3">
+                <span class="hidden sm:inline-flex items-center gap-1.5 bg-brand-50 text-brand-700 text-xs font-semibold px-3 py-1.5 rounded-full border border-brand-100">
+                    <i data-lucide="layers" class="w-3.5 h-3.5 text-sky-500"></i>
+                    @semester
+                </span>
+                <button class="relative w-9 h-9 rounded-lg flex items-center justify-center text-brand-600 hover:bg-brand-50 transition-colors">
+                    <i data-lucide="bell" class="w-5 h-5"></i>
+                    <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-sky-400 rounded-full ring-2 ring-white"></span>
+                </button>
+                <div class="flex items-center gap-2 pl-1 pr-3 py-1 rounded-xl hover:bg-brand-50 transition-colors cursor-pointer">
+                    <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-500 to-sky-400 flex items-center justify-center text-white text-xs font-bold shadow">
+                        @userInitial
+                    </div>
+                    <div class="hidden md:flex flex-col leading-tight">
+                        <span class="text-sm font-semibold text-brand-800">@userName</span>
+                        <span class="text-[10px] text-brand-400 font-medium">@role</span>
+                    </div>
+                    <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-brand-400"></i>
+                </div>
+            </div>
+        </header>
+
+        <!-- PAGE CONTENT -->
+        <main class="page-content flex-1 p-6">
+            @RenderBody()
+        </main>
+
+        <!-- FOOTER -->
+        <footer class="px-6 py-3 text-center text-xs text-indigo-300 border-t border-indigo-100">
+            Faculty Management System &copy; @DateTime.Now.Year — UET Lahore
+        </footer>
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        const sidebar     = document.getElementById('sidebar');
+        const mainWrapper = document.getElementById('main-wrapper');
+        const toggleBtn   = document.getElementById('sidebar-toggle');
+        let collapsed = false;
+
+        toggleBtn.addEventListener('click', () => {
+            collapsed = !collapsed;
+            if (collapsed) {
+                sidebar.classList.replace('expanded', 'collapsed');
+                mainWrapper.style.marginLeft = '4.5rem';
+            } else {
+                sidebar.classList.replace('collapsed', 'expanded');
+                mainWrapper.style.marginLeft = '16rem';
+            }
+        });
+    </script>
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>
