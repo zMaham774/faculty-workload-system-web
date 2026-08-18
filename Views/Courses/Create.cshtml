@@ -1,0 +1,148 @@
+﻿@model FacultyManagementSystem.Models.Course
+@{
+    ViewData["Title"] = "Courses";
+    bool hodLocked = Enumerable.Count((IEnumerable<dynamic>)ViewBag.Departments) == 1 &&
+                     (ViewData["UserRole"] as string) == "HOD";
+}
+
+<div class="max-w-2xl mx-auto">
+
+    <div class="flex items-center gap-2 text-xs text-indigo-400 font-medium mb-6">
+        <a asp-action="Index" class="hover:text-indigo-600 transition-colors">Courses</a>
+        <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+        <span class="text-brand-700">Add New</span>
+    </div>
+
+    <div class="mb-6">
+        <h2 class="font-display text-2xl font-bold text-brand-950">Add Course</h2>
+        <p class="text-indigo-400 text-sm mt-1">Fill in the details to add a new course.</p>
+    </div>
+
+    <div class="card p-6">
+        <form method="post" asp-action="Create" class="space-y-5">
+            @Html.AntiForgeryToken()
+
+            <!-- Course Code + Title -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="space-y-1.5 sm:col-span-1">
+                    <label class="text-xs font-semibold text-brand-800 uppercase tracking-wider">
+                        Course Code <span class="text-rose-400">*</span>
+                    </label>
+                    <input asp-for="CourseCode" placeholder="e.g. CS-301"
+                           class="w-full bg-indigo-50/50 border border-indigo-100 text-brand-900 text-sm px-4 py-2.5 rounded-xl placeholder-indigo-300 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all" />
+                    @if (ViewData.ModelState["CourseCode"]?.Errors.Count > 0)
+                    {
+                        <p class="text-xs text-rose-500 font-medium">@ViewData.ModelState["CourseCode"]!.Errors[0].ErrorMessage</p>
+                    }
+                </div>
+                <div class="space-y-1.5 sm:col-span-2">
+                    <label class="text-xs font-semibold text-brand-800 uppercase tracking-wider">
+                        Course Title <span class="text-rose-400">*</span>
+                    </label>
+                    <input asp-for="Title" placeholder="e.g. Database Systems"
+                           class="w-full bg-indigo-50/50 border border-indigo-100 text-brand-900 text-sm px-4 py-2.5 rounded-xl placeholder-indigo-300 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all" />
+                    @if (ViewData.ModelState["Title"]?.Errors.Count > 0)
+                    {
+                        <p class="text-xs text-rose-500 font-medium">@ViewData.ModelState["Title"]!.Errors[0].ErrorMessage</p>
+                    }
+                </div>
+            </div>
+
+            <!-- Department + Credit Hours -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="space-y-1.5">
+                    <label class="text-xs font-semibold text-brand-800 uppercase tracking-wider">
+                        Department <span class="text-rose-400">*</span>
+                    </label>
+                    @if (hodLocked)
+                    {
+                        var dept = Enumerable.First((IEnumerable<dynamic>)ViewBag.Departments);
+                        <div class="w-full bg-indigo-50 border border-indigo-100 text-brand-700 text-sm px-4 py-2.5 rounded-xl flex items-center gap-2">
+                            <i data-lucide="lock" class="w-3.5 h-3.5 text-indigo-400"></i>
+                            @dept.DeptName
+                        </div>
+                        <input type="hidden" asp-for="DeptId" value="@dept.DeptId" />
+                    }
+                    else
+                    {
+                        <select asp-for="DeptId"
+                                class="w-full bg-indigo-50/50 border border-indigo-100 text-brand-900 text-sm px-4 py-2.5 rounded-xl focus:outline-none focus:border-indigo-400 appearance-none">
+                            <option value="">— Select Department —</option>
+                            @foreach (var dept in (dynamic)ViewBag.Departments)
+                            {
+                                <option value="@dept.DeptId">@dept.DeptName</option>
+                            }
+                        </select>
+                    }
+                    @if (ViewData.ModelState["DeptId"]?.Errors.Count > 0)
+                    {
+                        <p class="text-xs text-rose-500 font-medium">@ViewData.ModelState["DeptId"]!.Errors[0].ErrorMessage</p>
+                    }
+                </div>
+                <div class="space-y-1.5">
+                    <label class="text-xs font-semibold text-brand-800 uppercase tracking-wider">
+                        Credit Hours <span class="text-rose-400">*</span>
+                    </label>
+                    <input asp-for="CreditHours" type="number" min="1" max="6" placeholder="e.g. 3"
+                           class="w-full bg-indigo-50/50 border border-indigo-100 text-brand-900 text-sm px-4 py-2.5 rounded-xl placeholder-indigo-300 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all" />
+                    @if (ViewData.ModelState["CreditHours"]?.Errors.Count > 0)
+                    {
+                        <p class="text-xs text-rose-500 font-medium">@ViewData.ModelState["CreditHours"]!.Errors[0].ErrorMessage</p>
+                    }
+                </div>
+            </div>
+
+            <!-- Course Type -->
+            <div class="space-y-1.5">
+                <label class="text-xs font-semibold text-brand-800 uppercase tracking-wider">
+                    Course Type <span class="text-rose-400">*</span>
+                </label>
+                <div class="grid grid-cols-3 gap-2">
+                    @foreach (var type in (List<string>)ViewBag.CourseTypes)
+                    {
+                        <label class="relative cursor-pointer">
+                            <input type="radio" name="CourseType" value="@type" class="sr-only peer" />
+                            <div class="text-center py-2.5 rounded-xl border border-indigo-100 text-sm font-semibold text-brand-700 peer-checked:bg-indigo-500 peer-checked:text-white peer-checked:border-indigo-500 transition-all">
+                                @type
+                            </div>
+                        </label>
+                    }
+                </div>
+                @if (ViewData.ModelState["CourseType"]?.Errors.Count > 0)
+                {
+                    <p class="text-xs text-rose-500 font-medium">@ViewData.ModelState["CourseType"]!.Errors[0].ErrorMessage</p>
+                }
+            </div>
+
+            <!-- Status toggle -->
+            <div class="flex items-center justify-between p-4 bg-indigo-50/50 border border-indigo-100 rounded-xl">
+                <div>
+                    <p class="text-sm font-semibold text-brand-900">Active Status</p>
+                    <p class="text-xs text-indigo-400 mt-0.5">Inactive courses won't appear in workload assignments</p>
+                </div>
+                <label class="relative cursor-pointer">
+                    <input type="checkbox" name="IsActive" value="true" class="sr-only peer" checked />
+                    <input type="hidden" name="IsActive" value="false" />
+                    <div class="w-11 h-6 bg-indigo-200 rounded-full peer-checked:bg-indigo-500 transition-colors duration-200"></div>
+                    <div class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 peer-checked:translate-x-5"></div>
+                </label>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex items-center gap-3 pt-2">
+                <button type="submit"
+                        class="flex-1 bg-gradient-to-r from-indigo-500 to-sky-400 text-white text-sm font-semibold py-2.5 rounded-xl hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 flex items-center justify-center gap-2">
+                    <i data-lucide="save" class="w-4 h-4"></i> Save Course
+                </button>
+                <a asp-action="Index"
+                   class="flex-1 text-center bg-indigo-50 border border-indigo-100 text-brand-700 text-sm font-semibold py-2.5 rounded-xl hover:bg-indigo-100 transition-colors">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script>lucide.createIcons();</script>
+}
