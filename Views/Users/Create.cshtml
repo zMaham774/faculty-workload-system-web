@@ -1,0 +1,184 @@
+﻿@model FacultyManagementSystem.Models.User
+@{
+    ViewData["Title"] = "Users";
+}
+
+<div class="max-w-2xl mx-auto">
+
+    <div class="flex items-center gap-2 text-xs text-indigo-400 font-medium mb-6">
+        <a asp-action="Index" class="hover:text-indigo-600 transition-colors">Users</a>
+        <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+        <span class="text-brand-700">Add New</span>
+    </div>
+
+    <div class="mb-6">
+        <h2 class="font-display text-2xl font-bold text-brand-950">Add User</h2>
+        <p class="text-indigo-400 text-sm mt-1">Create a new login account for the system.</p>
+    </div>
+
+    <div class="card p-6">
+        <form method="post" asp-action="Create" class="space-y-5">
+            @Html.AntiForgeryToken()
+
+            <!-- Username -->
+            <div class="space-y-1.5">
+                <label class="text-xs font-semibold text-brand-800 uppercase tracking-wider">
+                    Username <span class="text-rose-400">*</span>
+                </label>
+                <div class="relative">
+                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-indigo-400 pointer-events-none"><i data-lucide="user" class="w-3.5 h-3.5"></i></span>
+                    <input asp-for="Username" placeholder="e.g. sara.ahmed"
+                           class="w-full bg-indigo-50/50 border border-indigo-100 text-brand-900 text-sm pl-9 pr-4 py-2.5 rounded-xl placeholder-indigo-300 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all" />
+                </div>
+                @if (ViewData.ModelState["Username"]?.Errors.Count > 0)
+                {
+                    <p class="text-xs text-rose-500 font-medium">@ViewData.ModelState["Username"]!.Errors[0].ErrorMessage</p>
+                }
+            </div>
+
+            <!-- Password -->
+            <div class="space-y-1.5">
+                <label class="text-xs font-semibold text-brand-800 uppercase tracking-wider">
+                    Password <span class="text-rose-400">*</span>
+                </label>
+                <div class="relative">
+                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-indigo-400 pointer-events-none"><i data-lucide="lock" class="w-3.5 h-3.5"></i></span>
+                    <input type="password" name="password" id="pw-input" placeholder="Minimum 6 characters"
+                           class="w-full bg-indigo-50/50 border border-indigo-100 text-brand-900 text-sm pl-9 pr-10 py-2.5 rounded-xl placeholder-indigo-300 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all" />
+                    <button type="button" onclick="togglePw()" id="pw-eye"
+                            class="absolute right-3 top-1/2 -translate-y-1/2 text-indigo-300 hover:text-indigo-500 transition-colors">
+                        <i data-lucide="eye" class="w-3.5 h-3.5"></i>
+                    </button>
+                </div>
+                @if (ViewData.ModelState["Password"]?.Errors.Count > 0)
+                {
+                    <p class="text-xs text-rose-500 font-medium">@ViewData.ModelState["Password"]!.Errors[0].ErrorMessage</p>
+                }
+            </div>
+
+            <!-- Role -->
+            <div class="space-y-1.5">
+                <label class="text-xs font-semibold text-brand-800 uppercase tracking-wider">
+                    Role <span class="text-rose-400">*</span>
+                </label>
+                <div class="grid grid-cols-3 gap-2">
+                    @foreach (var role in (List<string>)ViewBag.Roles)
+                    {
+                        <label class="relative cursor-pointer">
+                            <input type="radio" name="Role" value="@role" class="sr-only peer" onchange="toggleFacultyField()" />
+                            <div class="text-center py-2.5 rounded-xl border border-indigo-100 text-sm font-semibold text-brand-700 peer-checked:bg-indigo-500 peer-checked:text-white peer-checked:border-indigo-500 transition-all">
+                                @role
+                            </div>
+                        </label>
+                    }
+                </div>
+                @if (ViewData.ModelState["Role"]?.Errors.Count > 0)
+                {
+                    <p class="text-xs text-rose-500 font-medium">@ViewData.ModelState["Role"]!.Errors[0].ErrorMessage</p>
+                }
+            </div>
+
+            <!-- Linked Faculty -->
+            <div class="space-y-1.5" id="faculty-field">
+                <label class="text-xs font-semibold text-brand-800 uppercase tracking-wider">Linked Faculty Member</label>
+                <select name="EmpId" id="faculty-select"
+                        class="w-full bg-indigo-50/50 border border-indigo-100 text-brand-900 text-sm px-4 py-2.5 rounded-xl focus:outline-none focus:border-indigo-400 appearance-none">
+                    <option value="">— None (Admin accounts only) —</option>
+                </select>
+                @if (ViewData.ModelState["EmpId"]?.Errors.Count > 0)
+                {
+                    <p class="text-xs text-rose-500 font-medium">@ViewData.ModelState["EmpId"]!.Errors[0].ErrorMessage</p>
+                }
+                <p class="text-[10px] text-indigo-400" id="faculty-hint">Required for HOD and Faculty roles. Each faculty member can only have one account.</p>
+            </div>
+
+            <!-- Status toggle -->
+            <div class="flex items-center justify-between p-4 bg-indigo-50/50 border border-indigo-100 rounded-xl">
+                <div>
+                    <p class="text-sm font-semibold text-brand-900">Active Status</p>
+                    <p class="text-xs text-indigo-400 mt-0.5">Inactive users cannot log in</p>
+                </div>
+                <label class="relative cursor-pointer">
+                    <input type="checkbox" name="IsActive" value="true" class="sr-only peer" checked />
+                    <input type="hidden" name="IsActive" value="false" />
+                    <div class="w-11 h-6 bg-indigo-200 rounded-full peer-checked:bg-indigo-500 transition-colors duration-200"></div>
+                    <div class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 peer-checked:translate-x-5"></div>
+                </label>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex items-center gap-3 pt-2">
+                <button type="submit"
+                        class="flex-1 bg-gradient-to-r from-indigo-500 to-sky-400 text-white text-sm font-semibold py-2.5 rounded-xl hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 flex items-center justify-center gap-2">
+                    <i data-lucide="save" class="w-4 h-4"></i> Save User
+                </button>
+                <a asp-action="Index"
+                   class="flex-1 text-center bg-indigo-50 border border-indigo-100 text-brand-700 text-sm font-semibold py-2.5 rounded-xl hover:bg-indigo-100 transition-colors">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        lucide.createIcons();
+
+        // Faculty lists rendered from server data
+        const allFaculty = [
+            @foreach (var f in (dynamic)ViewBag.FacultyList)
+            {
+                    @: { id: @f.EmpId, name: @Html.Raw(System.Text.Json.JsonSerializer.Serialize((string)f.Name)) },
+            }
+        ];
+        const hodFaculty = [
+            @foreach (var f in (dynamic)ViewBag.HodFacultyList)
+            {
+                    @: { id: @f.EmpId, name: @Html.Raw(System.Text.Json.JsonSerializer.Serialize((string)f.Name)) },
+            }
+        ];
+
+        function toggleFacultyField() {
+            const role = document.querySelector('input[name="Role"]:checked')?.value;
+            const select = document.getElementById('faculty-select');
+            const hint = document.getElementById('faculty-hint');
+
+            let list = allFaculty;
+            let placeholder = '— None (Admin accounts only) —';
+
+            if (role === 'HOD') {
+                list = hodFaculty;
+                placeholder = '— Select a designated HOD —';
+                hint.textContent = 'Only faculty members currently marked as a department HOD appear here.';
+            } else if (role === 'Faculty') {
+                list = allFaculty;
+                placeholder = '— Select faculty member —';
+                hint.textContent = 'Required for Faculty accounts. Each faculty member can only have one account.';
+            } else {
+                hint.textContent = 'Optional for Admin accounts.';
+            }
+
+            select.innerHTML = '<option value="">' + placeholder + '</option>';
+            list.forEach(f => {
+                const opt = document.createElement('option');
+                opt.value = f.id;
+                opt.textContent = f.name;
+                select.appendChild(opt);
+            });
+        }
+
+        // Init on page load in case a role is pre-selected
+        toggleFacultyField();
+
+        let pwVisible = false;
+        function togglePw() {
+            pwVisible = !pwVisible;
+            document.getElementById('pw-input').type = pwVisible ? 'text' : 'password';
+            document.getElementById('pw-eye').innerHTML = pwVisible
+                ? '<i data-lucide="eye-off" class="w-3.5 h-3.5"></i>'
+                : '<i data-lucide="eye" class="w-3.5 h-3.5"></i>';
+            lucide.createIcons();
+        }
+    </script>
+}
