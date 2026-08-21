@@ -1,0 +1,148 @@
+﻿@model FacultyManagementSystem.Models.WorkloadAssignment
+@{
+    ViewData["Title"] = "Workload";
+}
+
+<div class="max-w-2xl mx-auto">
+
+    <div class="flex items-center gap-2 text-xs text-indigo-400 font-medium mb-6">
+        <a asp-action="Index" class="hover:text-indigo-600 transition-colors">Workload</a>
+        <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+        <span class="text-brand-700">Add New</span>
+    </div>
+
+    <div class="mb-6">
+        <h2 class="font-display text-2xl font-bold text-brand-950">Add Workload Assignment</h2>
+        <p class="text-indigo-400 text-sm mt-1">Assign a course to a faculty member for a semester.</p>
+    </div>
+
+    @if (ViewData.ModelState["TotalHours"]?.Errors.Count > 0)
+    {
+        <div class="mb-4 flex items-center gap-2 bg-rose-50 border border-rose-200 text-rose-600 text-sm font-medium px-4 py-3 rounded-xl">
+            <i data-lucide="alert-triangle" class="w-4 h-4 shrink-0"></i>
+            @ViewData.ModelState["TotalHours"]!.Errors[0].ErrorMessage
+        </div>
+    }
+    @if (ViewData.ModelState["CourseId"]?.Errors.Count > 0)
+    {
+        <div class="mb-4 flex items-center gap-2 bg-rose-50 border border-rose-200 text-rose-600 text-sm font-medium px-4 py-3 rounded-xl">
+            <i data-lucide="alert-triangle" class="w-4 h-4 shrink-0"></i>
+            @ViewData.ModelState["CourseId"]!.Errors[0].ErrorMessage
+        </div>
+    }
+
+    <div class="card p-6">
+        <form method="post" asp-action="Create" class="space-y-5">
+            @Html.AntiForgeryToken()
+
+            <!-- Faculty -->
+            <div class="space-y-1.5">
+                <label class="text-xs font-semibold text-brand-800 uppercase tracking-wider">
+                    Faculty Member <span class="text-rose-400">*</span>
+                </label>
+                <select asp-for="EmpId"
+                        class="w-full bg-indigo-50/50 border border-indigo-100 text-brand-900 text-sm px-4 py-2.5 rounded-xl focus:outline-none focus:border-indigo-400 appearance-none">
+                    <option value="">— Select Faculty —</option>
+                    @foreach (var f in (dynamic)ViewBag.FacultyList)
+                    {
+                        <option value="@f.EmpId">@f.Name</option>
+                    }
+                </select>
+                @if (ViewData.ModelState["EmpId"]?.Errors.Count > 0)
+                {
+                    <p class="text-xs text-rose-500 font-medium">@ViewData.ModelState["EmpId"]!.Errors[0].ErrorMessage</p>
+                }
+            </div>
+
+            <!-- Course -->
+            <div class="space-y-1.5">
+                <label class="text-xs font-semibold text-brand-800 uppercase tracking-wider">
+                    Course <span class="text-rose-400">*</span>
+                </label>
+                <select asp-for="CourseId" id="course-select"
+                        class="w-full bg-indigo-50/50 border border-indigo-100 text-brand-900 text-sm px-4 py-2.5 rounded-xl focus:outline-none focus:border-indigo-400 appearance-none">
+                    <option value="">— Select Course —</option>
+                    @foreach (var c in (dynamic)ViewBag.CourseList)
+                    {
+                        <option value="@c.CourseId" data-credit="@c.CreditHours">@c.CourseCode — @c.Title (@c.CreditHours hrs)</option>
+                    }
+                </select>
+            </div>
+
+            <!-- Semester -->
+            <div class="space-y-1.5">
+                <label class="text-xs font-semibold text-brand-800 uppercase tracking-wider">
+                    Semester <span class="text-rose-400">*</span>
+                </label>
+                <select asp-for="SemId"
+                        class="w-full bg-indigo-50/50 border border-indigo-100 text-brand-900 text-sm px-4 py-2.5 rounded-xl focus:outline-none focus:border-indigo-400 appearance-none">
+                    <option value="">— Select Semester —</option>
+                    @foreach (var s in (dynamic)ViewBag.Semesters)
+                    {
+                        var label = s.IsCurrent ? $"{s.SemName} (Current)" : (string)s.SemName;
+                        <option value="@s.SemId">@label</option>
+                    }
+                </select>
+                @if (ViewData.ModelState["SemId"]?.Errors.Count > 0)
+                {
+                    <p class="text-xs text-rose-500 font-medium">@ViewData.ModelState["SemId"]!.Errors[0].ErrorMessage</p>
+                }
+            </div>
+
+            <!-- Total Hours -->
+            <div class="space-y-1.5">
+                <label class="text-xs font-semibold text-brand-800 uppercase tracking-wider">
+                    Total Hours <span class="text-rose-400">*</span>
+                </label>
+                <input type="number" name="TotalHours" id="hours-input" step="0.5" min="0.5" placeholder="e.g. 3"
+                       class="w-full bg-indigo-50/50 border border-indigo-100 text-brand-900 text-sm px-4 py-2.5 rounded-xl placeholder-indigo-300 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all" />
+                <p class="text-[10px] text-indigo-400" id="hours-hint">Auto-fills from the course's credit hours — adjust if needed.</p>
+            </div>
+
+            <!-- Status -->
+            <div class="space-y-1.5">
+                <label class="text-xs font-semibold text-brand-800 uppercase tracking-wider">Status</label>
+                <div class="grid grid-cols-3 gap-2">
+                    @foreach (var status in (List<string>)ViewBag.StatusOptions)
+                    {
+                        <label class="relative cursor-pointer">
+                            <input type="radio" name="Status" value="@status" class="sr-only peer"
+                                   @(status == "Active" ? "checked" : "") />
+                            <div class="text-center py-2.5 rounded-xl border border-indigo-100 text-xs font-semibold text-brand-700 peer-checked:bg-indigo-500 peer-checked:text-white peer-checked:border-indigo-500 transition-all">
+                                @status
+                            </div>
+                        </label>
+                    }
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex items-center gap-3 pt-2">
+                <button type="submit"
+                        class="flex-1 bg-gradient-to-r from-indigo-500 to-sky-400 text-white text-sm font-semibold py-2.5 rounded-xl hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 flex items-center justify-center gap-2">
+                    <i data-lucide="save" class="w-4 h-4"></i> Save Assignment
+                </button>
+                <a asp-action="Index"
+                   class="flex-1 text-center bg-indigo-50 border border-indigo-100 text-brand-700 text-sm font-semibold py-2.5 rounded-xl hover:bg-indigo-100 transition-colors">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        lucide.createIcons();
+
+        // Auto-fill hours from course credit hours whenever course selection changes
+        document.getElementById('course-select').addEventListener('change', function() {
+            const selected = this.options[this.selectedIndex];
+            const credit = selected.getAttribute('data-credit');
+            const hoursInput = document.getElementById('hours-input');
+            if (credit) {
+                hoursInput.value = credit;
+            }
+        });
+    </script>
+}
