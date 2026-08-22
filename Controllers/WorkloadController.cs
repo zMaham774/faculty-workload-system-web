@@ -13,42 +13,102 @@ namespace FacultyManagementSystem.Controllers
         {
             var role = HttpContext.Session.GetString("UserRole");
             if (string.IsNullOrEmpty(role))
+            {
                 return RedirectToAction("Login", "Account");
-            if (role != "Admin" && role != "HOD")
+            }
+            if (role != "Admin" && role != "HOD" && role != "Faculty")
+            {
                 return RedirectToAction("Index", "Home");
+            }
+            return null;
+        }
+
+        private IActionResult? GuardManage()
+        {
+            var role = HttpContext.Session.GetString("UserRole");
+            if (string.IsNullOrEmpty(role))
+            {
+                return RedirectToAction("Login", "Account");
+            }
+            if (role != "Admin" && role != "HOD")
+            {
+                return RedirectToAction("Index", nameof(Index));
+            }
             return null;
         }
 
         private async Task<int?> GetHodDeptIdIfApplicable()
         {
             var role = HttpContext.Session.GetString("UserRole");
-            if (role != "HOD") return null;
-
+            if (role != "HOD")
+            {
+                return null;
+            }
             var empId = HttpContext.Session.GetInt32("FacultyId");
-            if (!empId.HasValue) return null;
-
-            return await _db.Faculties
-                .Where(f => f.EmpId == empId && !f.IsDeleted)
-                .Select(f => (int?)f.DeptId)
-                .FirstOrDefaultAsync();
+            if (!empId.HasValue)
+            {
+                return null;
+            }
+            return await _db.Faculties.Where(f => f.EmpId == empId && !f.IsDeleted).Select(f => (int?)f.DeptId).FirstOrDefaultAsync();
         }
-
-        // ═══════════════ ASSIGNMENTS ═══════════════
 
         // GET: /Workload/Index
         public async Task<IActionResult> Index(int? semId, int? deptId)
         {
             var guard = Guard();
-            if (guard != null) return guard;
+            if (guard != null)
+            {
+                return guard;
+            }
             ViewData["Title"] = "Workload";
+            var role = HttpContext.Session.GetString("UserRole");
+            // Faculty - read-only, own assignments only
+            if (role == "Faculty")
+            {
+                var myEmpId = HttpContext.Session.GetInt32("FacultyId");
+                if (!myEmpId.HasValue)
+                {
+                    return RedirectToAction("Login", "Account");
+                }
+                var activeSemIdForFaculty = semId ?? await _db.Semesters.Where(s => s.IsCurrent && !s.IsDeleted).Select(s => (int?)s.SemId).FirstOrDefaultAsync();
+                var myQuery = _db.WorkloadAssignments
+                    .Include(w => w.Emp).ThenInclude(f => f.Dept)
+                    .Include(w => w.Course)
+                    .Include(w => w.Sem)
+                    .Where(w => !w.IsDeleted && w.EmpId == myEmpId &&
+                                !w.Emp.IsDeleted && !w.Course.IsDeleted && !w.Sem.IsDeleted)
+                    .AsQueryable();
 
+                if (activeSemIdForFaculty.HasValue)
+                {
+                    myQuery = myQuery.Where(w => w.SemId == activeSemIdForFaculty);
+                }
+                var myAssignments = await myQuery.OrderBy(w => w.Course.Title).Select(w => new WorkloadRow{
+                        WaId = w.WaId,
+                        EmpId = w.EmpId,
+                        FacultyName = w.Emp.Name,
+                        CourseId = w.CourseId,
+                        CourseTitle = w.Course.Title,
+                        CourseCode = w.Course.CourseCode,
+                        CreditHours = w.Course.CreditHours,
+                        DeptName = w.Emp.Dept.DeptName,
+                        DeptId = w.Emp.DeptId,
+                        SemId = w.SemId,
+                        SemName = w.Sem.SemName,
+                        TotalHours = w.TotalHours,
+                        Status = w.Status,
+                        AssignedDate = w.AssignedDate, 
+                }).ToListAsync();
+
+                ViewBag.Semesters = await _db.Semesters.Where(s => !s.IsDeleted).OrderByDescending(s => s.StartDate).Select(s => new { s.SemId, s.SemName }).ToListAsync();
+                ViewData["ReadOnly"] = true;
+                ViewData["SelectedSem"] = activeSemIdForFaculty;
+                return View(myAssignments);
+            }
+            // Admin / HOD
             var hodDeptId = await GetHodDeptIdIfApplicable();
-
             // Default to current semester if none specified
-            var activeSemId = semId ?? await _db.Semesters
-                .Where(s => s.IsCurrent && !s.IsDeleted)
-                .Select(s => (int?)s.SemId)
-                .FirstOrDefaultAsync();
+            var activeSemId = semId ?? await _db.Semesters.Where(s => s.IsCurrent && !s.IsDeleted).Select(s => (int?)s.SemId).FirstOrDefaultAsync();
 
             var query = _db.WorkloadAssignments
                 .Include(w => w.Emp).ThenInclude(f => f.Dept)
@@ -61,13 +121,17 @@ namespace FacultyManagementSystem.Controllers
                 .AsQueryable();
 
             if (activeSemId.HasValue)
+            {
                 query = query.Where(w => w.SemId == activeSemId);
-
+            }
             if (hodDeptId.HasValue)
+            {
                 query = query.Where(w => w.Emp.DeptId == hodDeptId);
+            }
             else if (deptId.HasValue)
+            {
                 query = query.Where(w => w.Emp.DeptId == deptId);
-
+            }
             var assignments = await query
                 .OrderBy(w => w.Emp.Name)
                 .ThenBy(w => w.Course.Title)
@@ -93,21 +157,16 @@ namespace FacultyManagementSystem.Controllers
             await LoadFilterDropdowns(hodDeptId);
 
             // Reassign modal needs faculty grouped by department
-            var facultyQuery = _db.Faculties
-                .Where(f => !f.IsDeleted && f.IsActive == true)
-                .AsQueryable();
+            var facultyQuery = _db.Faculties.Where(f => !f.IsDeleted && f.IsActive == true).AsQueryable();
             if (hodDeptId.HasValue)
+            {
                 facultyQuery = facultyQuery.Where(f => f.DeptId == hodDeptId);
-
-            ViewBag.FacultyList = await facultyQuery
-                .OrderBy(f => f.Name)
-                .Select(f => new { f.EmpId, f.Name, f.DeptId })
-                .ToListAsync();
-
+            }
+            ViewBag.FacultyList = await facultyQuery.OrderBy(f => f.Name).Select(f => new { f.EmpId, f.Name, f.DeptId }).ToListAsync();
             ViewData["SelectedSem"] = activeSemId;
             ViewData["SelectedDept"] = deptId;
             ViewData["HodLocked"] = hodDeptId.HasValue;
-
+            ViewData["ReadOnly"] = false;
             return View(assignments);
         }
 
@@ -115,13 +174,14 @@ namespace FacultyManagementSystem.Controllers
         [HttpGet]
         public async Task<IActionResult> Create()
         {
-            var guard = Guard();
-            if (guard != null) return guard;
+            var guard = GuardManage();
+            if (guard != null)
+            {
+                return guard;
+            }
             ViewData["Title"] = "Workload";
-
             var hodDeptId = await GetHodDeptIdIfApplicable();
             await LoadFormDropdowns(hodDeptId);
-
             return View(new WorkloadAssignment { Status = "Active" });
         }
 
@@ -130,46 +190,38 @@ namespace FacultyManagementSystem.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(WorkloadAssignment model)
         {
-            var guard = Guard();
-            if (guard != null) return guard;
+            var guard = GuardManage();
+            if (guard != null)
+            {
+                return guard;
+            }
             ViewData["Title"] = "Workload";
-
             ModelState.Remove("Emp");
             ModelState.Remove("Course");
             ModelState.Remove("Sem");
             ModelState.Remove("AttendanceRecords");
             ModelState.Remove("Timetables");
-
             var hodDeptId = await GetHodDeptIdIfApplicable();
-
             // Enforce HOD can only assign within own department
             if (hodDeptId.HasValue)
             {
-                var facultyDept = await _db.Faculties
-                    .Where(f => f.EmpId == model.EmpId)
-                    .Select(f => (int?)f.DeptId)
-                    .FirstOrDefaultAsync();
-
+                var facultyDept = await _db.Faculties.Where(f => f.EmpId == model.EmpId).Select(f => (int?)f.DeptId).FirstOrDefaultAsync();
                 if (facultyDept != hodDeptId)
                 {
                     TempData["Error"] = "You can only assign workload to faculty in your own department.";
                     return RedirectToAction(nameof(Index));
                 }
             }
-
             var (valid, warning) = await ValidateAssignment(model, 0);
             if (!valid)
             {
                 await LoadFormDropdowns(hodDeptId);
                 return View(model);
             }
-
             model.IsDeleted = false;
             model.AssignedDate = DateOnly.FromDateTime(DateTime.Now);
-
             _db.WorkloadAssignments.Add(model);
             await _db.SaveChangesAsync();
-
             TempData["Success"] = "Workload assignment created successfully." +
                 (warning != null ? " " + warning : "");
             return RedirectToAction(nameof(Index));
@@ -179,70 +231,60 @@ namespace FacultyManagementSystem.Controllers
         [HttpGet]
         public async Task<IActionResult> Edit(int id)
         {
-            var guard = Guard();
-            if (guard != null) return guard;
+            var guard = GuardManage();
+            if (guard != null)
+            {
+                return guard;
+            }
             ViewData["Title"] = "Workload";
-
             var hodDeptId = await GetHodDeptIdIfApplicable();
-
-            var wa = await _db.WorkloadAssignments
-                .Include(w => w.Emp)
-                .FirstOrDefaultAsync(w => w.WaId == id && !w.IsDeleted);
-
+            var wa = await _db.WorkloadAssignments.Include(w => w.Emp).FirstOrDefaultAsync(w => w.WaId == id && !w.IsDeleted);
             if (wa == null)
             {
                 TempData["Error"] = "Assignment not found.";
                 return RedirectToAction(nameof(Index));
             }
-
             if (hodDeptId.HasValue && wa.Emp.DeptId != hodDeptId)
             {
                 TempData["Error"] = "You can only edit assignments in your own department.";
                 return RedirectToAction(nameof(Index));
             }
-
             await LoadFormDropdowns(hodDeptId);
             return View(wa);
         }
 
-        // POST: /Workload/Edit/5 — mirrors WinForms Update (hours/status/date only)
+        // POST: /Workload/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id, WorkloadAssignment model)
         {
-            var guard = Guard();
-            if (guard != null) return guard;
+            var guard = GuardManage();
+            if (guard != null)
+            {
+                return guard;
+            }
             ViewData["Title"] = "Workload";
-
             ModelState.Remove("Emp");
             ModelState.Remove("Course");
             ModelState.Remove("Sem");
             ModelState.Remove("AttendanceRecords");
             ModelState.Remove("Timetables");
-
             var hodDeptId = await GetHodDeptIdIfApplicable();
-
-            var wa = await _db.WorkloadAssignments
-                .Include(w => w.Emp)
-                .FirstOrDefaultAsync(w => w.WaId == id && !w.IsDeleted);
-
+            var wa = await _db.WorkloadAssignments.Include(w => w.Emp).FirstOrDefaultAsync(w => w.WaId == id && !w.IsDeleted);
             if (wa == null)
             {
                 TempData["Error"] = "Assignment not found.";
                 return RedirectToAction(nameof(Index));
             }
-
             if (hodDeptId.HasValue && wa.Emp.DeptId != hodDeptId)
             {
                 TempData["Error"] = "You can only edit assignments in your own department.";
                 return RedirectToAction(nameof(Index));
             }
-
-            // Emp/Course/Sem are not editable — mirrors WinForms Update (hours/status/date only)
+            // Emp/Course/Sem are not editable
             model.EmpId = wa.EmpId;
             model.CourseId = wa.CourseId;
             model.SemId = wa.SemId;
-
             var (valid, warning) = await ValidateAssignment(model, id);
             if (!valid)
             {
@@ -250,13 +292,10 @@ namespace FacultyManagementSystem.Controllers
                 model.WaId = id;
                 return View(model);
             }
-
             wa.TotalHours = model.TotalHours;
             wa.Status = model.Status;
             wa.AssignedDate = model.AssignedDate;
-
             await _db.SaveChangesAsync();
-
             TempData["Success"] = "Workload assignment updated successfully." +
                 (warning != null ? " " + warning : "");
             return RedirectToAction(nameof(Index));
@@ -267,91 +306,75 @@ namespace FacultyManagementSystem.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Delete(int id)
         {
-            var guard = Guard();
-            if (guard != null) return guard;
-
+            var guard = GuardManage();
+            if (guard != null)
+            {
+                return guard;
+            }
             var hodDeptId = await GetHodDeptIdIfApplicable();
-
-            var wa = await _db.WorkloadAssignments
-                .Include(w => w.Emp)
-                .FirstOrDefaultAsync(w => w.WaId == id && !w.IsDeleted);
-
+            var wa = await _db.WorkloadAssignments.Include(w => w.Emp).FirstOrDefaultAsync(w => w.WaId == id && !w.IsDeleted);
             if (wa == null)
             {
                 TempData["Error"] = "Assignment not found.";
                 return RedirectToAction(nameof(Index));
             }
-
             if (hodDeptId.HasValue && wa.Emp.DeptId != hodDeptId)
             {
                 TempData["Error"] = "You can only delete assignments in your own department.";
                 return RedirectToAction(nameof(Index));
             }
-
             // Block delete if timetable/attendance already reference this assignment
-            var hasRelated = await _db.Timetables.AnyAsync(t => t.WaId == id) ||
-                              await _db.AttendanceRecords.AnyAsync(a => a.WaId == id);
+            var hasRelated = await _db.Timetables.AnyAsync(t => t.WaId == id) || await _db.AttendanceRecords.AnyAsync(a => a.WaId == id);
             if (hasRelated)
             {
                 TempData["Error"] = "Cannot delete — this assignment has related timetable or attendance records.";
                 return RedirectToAction(nameof(Index));
             }
-
             wa.IsDeleted = true;
             wa.Status = "Dropped";
             await _db.SaveChangesAsync();
-
             TempData["Success"] = "Workload assignment deleted successfully.";
             return RedirectToAction(nameof(Index));
         }
 
-        // POST: /Workload/Reassign/5 — mirrors WinForms transaction: update + log, atomic
+        // POST: /Workload/Reassign/5 
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Reassign(int waId, int toEmpId, string? reason)
         {
-            var guard = Guard();
-            if (guard != null) return guard;
-
+            var guard = GuardManage();
+            if (guard != null)
+            {
+                return guard;
+            }
             var hodDeptId = await GetHodDeptIdIfApplicable();
-
-            var wa = await _db.WorkloadAssignments
-                .Include(w => w.Emp)
-                .FirstOrDefaultAsync(w => w.WaId == waId && !w.IsDeleted);
-
+            var wa = await _db.WorkloadAssignments.Include(w => w.Emp).FirstOrDefaultAsync(w => w.WaId == waId && !w.IsDeleted);
             if (wa == null)
             {
                 TempData["Error"] = "Assignment not found.";
                 return RedirectToAction(nameof(Index));
             }
-
             if (hodDeptId.HasValue && wa.Emp.DeptId != hodDeptId)
             {
                 TempData["Error"] = "You can only reassign courses within your own department.";
                 return RedirectToAction(nameof(Index));
             }
-
             // New faculty must be in the same department scope for HOD
             if (hodDeptId.HasValue)
             {
-                var toDept = await _db.Faculties
-                    .Where(f => f.EmpId == toEmpId)
-                    .Select(f => (int?)f.DeptId)
-                    .FirstOrDefaultAsync();
+                var toDept = await _db.Faculties.Where(f => f.EmpId == toEmpId).Select(f => (int?)f.DeptId).FirstOrDefaultAsync();
                 if (toDept != hodDeptId)
                 {
                     TempData["Error"] = "You can only reassign to faculty within your own department.";
                     return RedirectToAction(nameof(Index));
                 }
             }
-
             // Prevent reassigning to the same faculty
             if (toEmpId == wa.EmpId)
             {
                 TempData["Error"] = "This course is already assigned to that faculty member.";
                 return RedirectToAction(nameof(Index));
             }
-
             // Check for duplicate assignment for target faculty
             var duplicate = await _db.WorkloadAssignments
                 .AnyAsync(w => w.EmpId == toEmpId &&
@@ -364,18 +387,16 @@ namespace FacultyManagementSystem.Controllers
                 TempData["Error"] = "The target faculty member already has this course assigned this semester.";
                 return RedirectToAction(nameof(Index));
             }
-
             int fromEmpId = wa.EmpId;
             int userId = HttpContext.Session.GetInt32("UserId") ?? 0;
-
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-                // Step 1 — update assignment to new faculty
+                // update assignment to new faculty
                 wa.EmpId = toEmpId;
                 await _db.SaveChangesAsync();
 
-                // Step 2 — log the reassignment
+                // log the reassignment
                 var log = new CourseReassignmentLog
                 {
                     CourseId = wa.CourseId,
@@ -388,7 +409,6 @@ namespace FacultyManagementSystem.Controllers
                 };
                 _db.CourseReassignmentLogs.Add(log);
                 await _db.SaveChangesAsync();
-
                 await transaction.CommitAsync();
                 TempData["Success"] = "Course reassigned successfully.";
             }
@@ -397,30 +417,28 @@ namespace FacultyManagementSystem.Controllers
                 await transaction.RollbackAsync();
                 TempData["Error"] = "Failed to reassign course. Please try again.";
             }
-
             return RedirectToAction(nameof(Index));
         }
 
-        // ═══════════════ STANDARDS (modal, reached from Assignments page) ═══════════════
-
-        // GET: /Workload/Standards — returns partial list for the modal
+        // GET: /Workload/Standards 
         [HttpGet]
         public async Task<IActionResult> Standards()
         {
-            var guard = Guard();
-            if (guard != null) return guard;
-
+            var guard = GuardManage();
+            if (guard != null)
+            {
+                return guard;
+            }
             var hodDeptId = await GetHodDeptIdIfApplicable();
-
             var query = _db.WorkloadStandards
                 .Include(w => w.Dept)
                 .Include(w => w.Sem)
                 .Where(w => !w.Dept.IsDeleted)
                 .AsQueryable();
-
             if (hodDeptId.HasValue)
+            {
                 query = query.Where(w => w.DeptId == hodDeptId);
-
+            }
             var standards = await query
                 .OrderBy(w => w.Dept.DeptName)
                 .Select(w => new
@@ -435,16 +453,15 @@ namespace FacultyManagementSystem.Controllers
                     w.StdHours
                 })
                 .ToListAsync();
-
             return Json(standards);
         }
 
-        // POST: /Workload/SaveStandard — add or update via AJAX
+        // POST: /Workload/SaveStandard
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> SaveStandard(int wsId, int deptId, int semId, int minHours, int maxHours, int stdHours)
         {
-            var guard = Guard();
+            var guard = GuardManage();
             if (guard != null)
                 return Json(new { success = false, message = "Unauthorized" });
 
@@ -463,7 +480,7 @@ namespace FacultyManagementSystem.Controllers
 
             if (wsId == 0)
             {
-                // Insert — check duplicate dept+sem combo
+                // Insert - check duplicate dept+sem combo
                 var exists = await _db.WorkloadStandards
                     .AnyAsync(w => w.DeptId == deptId && w.SemId == semId);
                 if (exists)
@@ -501,12 +518,12 @@ namespace FacultyManagementSystem.Controllers
             return Json(new { success = true });
         }
 
-        // POST: /Workload/DeleteStandard — hard delete via AJAX, mirrors WinForms
+        // POST: /Workload/DeleteStandard
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteStandard(int wsId)
         {
-            var guard = Guard();
+            var guard = GuardManage();
             if (guard != null)
                 return Json(new { success = false, message = "Unauthorized" });
 
@@ -523,7 +540,7 @@ namespace FacultyManagementSystem.Controllers
             return Json(new { success = true });
         }
 
-        // ═══════════════ HELPERS ═══════════════
+        // HELPERS
 
         private async Task LoadFilterDropdowns(int? hodDeptId)
         {
@@ -552,25 +569,18 @@ namespace FacultyManagementSystem.Controllers
 
         private async Task LoadFormDropdowns(int? hodDeptId)
         {
-            var facultyQuery = _db.Faculties
-                .Where(f => !f.IsDeleted && f.IsActive == true)
-                .AsQueryable();
+            var facultyQuery = _db.Faculties.Where(f => !f.IsDeleted && f.IsActive == true).AsQueryable();
 
             if (hodDeptId.HasValue)
+            {
                 facultyQuery = facultyQuery.Where(f => f.DeptId == hodDeptId);
-
-            ViewBag.FacultyList = await facultyQuery
-                .OrderBy(f => f.Name)
-                .Select(f => new { f.EmpId, f.Name, f.DeptId })
-                .ToListAsync();
-
-            var courseQuery = _db.Courses
-                .Where(c => !c.IsDeleted && c.IsActive == true)
-                .AsQueryable();
-
+            }
+            ViewBag.FacultyList = await facultyQuery.OrderBy(f => f.Name).Select(f => new { f.EmpId, f.Name, f.DeptId }).ToListAsync();
+            var courseQuery = _db.Courses.Where(c => !c.IsDeleted && c.IsActive == true).AsQueryable();
             if (hodDeptId.HasValue)
+            {
                 courseQuery = courseQuery.Where(c => c.DeptId == hodDeptId);
-
+            }
             ViewBag.CourseList = await courseQuery
                 .OrderBy(c => c.CourseCode)
                 .Select(c => new { c.CourseId, c.CourseCode, c.Title, c.CreditHours, c.DeptId })

@@ -2,6 +2,7 @@
 @{
     ViewData["Title"] = "Workload";
     bool hodLocked = ViewData["HodLocked"] is bool b && b;
+    bool readOnly = ViewData["ReadOnly"] is bool ro && ro;
 }
 
 @if (TempData["Success"] != null)
@@ -24,7 +25,7 @@
 <!-- Page header -->
 <div class="flex items-center justify-between mb-6">
     <div>
-        <p class="text-indigo-400 text-sm font-medium">Manage</p>
+        <p class="text-indigo-400 text-sm font-medium">@(readOnly ? "My" : "Manage")</p>
         <h2 class="font-display text-2xl font-bold text-brand-950">Workload Assignments</h2>
         @if (hodLocked)
         {
@@ -34,16 +35,19 @@
         }
     </div>
     <div class="flex items-center gap-2">
-        <button onclick="openStandardsModal()"
-                class="inline-flex items-center gap-2 bg-white border border-indigo-100 text-indigo-600 text-sm font-semibold px-4 py-2.5 rounded-xl hover:bg-indigo-50 transition-colors">
-            <i data-lucide="sliders-horizontal" class="w-4 h-4"></i>
-            Manage Standards
-        </button>
-        <a asp-action="Create"
-           class="inline-flex items-center gap-2 bg-gradient-to-r from-indigo-500 to-sky-400 text-white text-sm font-semibold px-4 py-2.5 rounded-xl shadow hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200">
-            <i data-lucide="plus" class="w-4 h-4"></i>
-            Add Assignment
-        </a>
+        @if (!readOnly)
+        {
+            <button onclick="openStandardsModal()"
+                    class="inline-flex items-center gap-2 bg-white border border-indigo-100 text-indigo-600 text-sm font-semibold px-4 py-2.5 rounded-xl hover:bg-indigo-50 transition-colors">
+                <i data-lucide="sliders-horizontal" class="w-4 h-4"></i>
+                Manage Standards
+            </button>
+            <a asp-action="Create"
+               class="inline-flex items-center gap-2 bg-gradient-to-r from-indigo-500 to-sky-400 text-white text-sm font-semibold px-4 py-2.5 rounded-xl shadow hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200">
+                <i data-lucide="plus" class="w-4 h-4"></i>
+                Add Assignment
+            </a>
+        }
     </div>
 </div>
 
@@ -70,7 +74,7 @@
             </span>
         </div>
 
-        @if (!hodLocked)
+        @if (!hodLocked && !readOnly)
         {
             <div class="relative min-w-48">
                 <select name="deptId" onchange="this.form.submit()"
@@ -124,10 +128,13 @@
                 <i data-lucide="briefcase" class="w-7 h-7 text-indigo-300"></i>
             </div>
             <p class="font-display font-semibold text-brand-900 text-base">No workload assignments found</p>
-            <p class="text-indigo-400 text-sm mt-1">Try a different semester or add a new assignment.</p>
-            <a asp-action="Create" class="mt-4 inline-flex items-center gap-2 bg-indigo-500 text-white text-sm font-semibold px-4 py-2 rounded-xl hover:bg-indigo-600 transition-colors">
-                <i data-lucide="plus" class="w-4 h-4"></i> Add Assignment
-            </a>
+            <p class="text-indigo-400 text-sm mt-1">@(readOnly ? "You have no workload assignments yet." : "Try a different semester or add a new assignment.")</p>
+            @if (!readOnly)
+            {
+                <a asp-action="Create" class="mt-4 inline-flex items-center gap-2 bg-indigo-500 text-white text-sm font-semibold px-4 py-2 rounded-xl hover:bg-indigo-600 transition-colors">
+                    <i data-lucide="plus" class="w-4 h-4"></i> Add Assignment
+                </a>
+            }
         </div>
     }
     else
@@ -143,7 +150,10 @@
                         <th class="text-left px-5 py-3 text-xs font-semibold text-indigo-400 uppercase tracking-wider">Semester</th>
                         <th class="text-left px-5 py-3 text-xs font-semibold text-indigo-400 uppercase tracking-wider">Hours</th>
                         <th class="text-left px-5 py-3 text-xs font-semibold text-indigo-400 uppercase tracking-wider">Status</th>
-                        <th class="text-left px-5 py-3 text-xs font-semibold text-indigo-400 uppercase tracking-wider">Actions</th>
+                        @if (!readOnly)
+                        {
+                            <th class="text-left px-5 py-3 text-xs font-semibold text-indigo-400 uppercase tracking-wider">Actions</th>
+                        }
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-indigo-50">
@@ -192,20 +202,23 @@
                                 </span>
                             </td>
                             <td class="px-5 py-3.5">
-                                <div class="flex items-center gap-2">
-                                    <button onclick='openReassignModal(@w.WaId, @Html.Raw(System.Text.Json.JsonSerializer.Serialize(w.FacultyName)), @w.DeptId, @w.CourseId, @w.SemId)'
-                                            class="w-8 h-8 rounded-lg bg-violet-50 flex items-center justify-center text-violet-500 hover:bg-violet-100 transition-colors" title="Reassign">
-                                        <i data-lucide="repeat" class="w-3.5 h-3.5"></i>
-                                    </button>
-                                    <a asp-action="Edit" asp-route-id="@w.WaId"
-                                       class="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-500 hover:bg-indigo-100 transition-colors" title="Edit">
-                                        <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
-                                    </a>
-                                    <button onclick="confirmDelete(@w.WaId, '@w.FacultyName — @w.CourseCode')"
-                                            class="w-8 h-8 rounded-lg bg-rose-50 flex items-center justify-center text-rose-400 hover:bg-rose-100 transition-colors" title="Delete">
-                                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-                                    </button>
-                                </div>
+                                @if (!readOnly)
+                                {
+                                    <div class="flex items-center gap-2">
+                                        <button onclick='openReassignModal(@w.WaId, @Html.Raw(System.Text.Json.JsonSerializer.Serialize(w.FacultyName)), @w.DeptId, @w.CourseId, @w.SemId)'
+                                                class="w-8 h-8 rounded-lg bg-violet-50 flex items-center justify-center text-violet-500 hover:bg-violet-100 transition-colors" title="Reassign">
+                                            <i data-lucide="repeat" class="w-3.5 h-3.5"></i>
+                                        </button>
+                                        <a asp-action="Edit" asp-route-id="@w.WaId"
+                                           class="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-500 hover:bg-indigo-100 transition-colors" title="Edit">
+                                            <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                                        </a>
+                                        <button onclick="confirmDelete(@w.WaId, '@w.FacultyName — @w.CourseCode')"
+                                                class="w-8 h-8 rounded-lg bg-rose-50 flex items-center justify-center text-rose-400 hover:bg-rose-100 transition-colors" title="Delete">
+                                            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                        </button>
+                                    </div>
+                                }
                             </td>
                         </tr>
                         i++;
@@ -216,160 +229,163 @@
     }
 </div>
 
-<!-- Delete modal -->
-<div id="delete-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
-    <div class="absolute inset-0 bg-brand-950/40 backdrop-blur-sm" onclick="closeModal('delete-modal')"></div>
-    <div class="relative bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm">
-        <div class="w-12 h-12 rounded-2xl bg-rose-50 flex items-center justify-center mx-auto mb-4">
-            <i data-lucide="trash-2" class="w-6 h-6 text-rose-500"></i>
+@if (!readOnly)
+{
+    <!-- Delete modal -->
+    <div id="delete-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-brand-950/40 backdrop-blur-sm" onclick="closeModal('delete-modal')"></div>
+        <div class="relative bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm">
+            <div class="w-12 h-12 rounded-2xl bg-rose-50 flex items-center justify-center mx-auto mb-4">
+                <i data-lucide="trash-2" class="w-6 h-6 text-rose-500"></i>
+            </div>
+            <h3 class="font-display font-bold text-brand-950 text-lg text-center">Delete Assignment?</h3>
+            <p class="text-indigo-400 text-sm text-center mt-1 mb-5">
+                Remove <span id="delete-name" class="font-semibold text-brand-900"></span> from workload?
+            </p>
+            <form method="post" asp-action="Delete">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="id" id="delete-id" />
+                <div class="flex gap-3">
+                    <button type="button" onclick="closeModal('delete-modal')"
+                            class="flex-1 py-2.5 rounded-xl border border-indigo-100 text-brand-700 text-sm font-semibold hover:bg-indigo-50 transition-colors">
+                        Cancel
+                    </button>
+                    <button type="submit"
+                            class="flex-1 py-2.5 rounded-xl bg-rose-500 text-white text-sm font-semibold hover:bg-rose-600 transition-colors">
+                        Delete
+                    </button>
+                </div>
+            </form>
         </div>
-        <h3 class="font-display font-bold text-brand-950 text-lg text-center">Delete Assignment?</h3>
-        <p class="text-indigo-400 text-sm text-center mt-1 mb-5">
-            Remove <span id="delete-name" class="font-semibold text-brand-900"></span> from workload?
-        </p>
-        <form method="post" asp-action="Delete">
-            @Html.AntiForgeryToken()
-            <input type="hidden" name="id" id="delete-id" />
-            <div class="flex gap-3">
-                <button type="button" onclick="closeModal('delete-modal')"
+    </div>
+
+    <!-- Reassign modal -->
+    <div id="reassign-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-brand-950/40 backdrop-blur-sm" onclick="closeModal('reassign-modal')"></div>
+        <div class="relative bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md">
+            <div class="w-12 h-12 rounded-2xl bg-violet-50 flex items-center justify-center mx-auto mb-4">
+                <i data-lucide="repeat" class="w-6 h-6 text-violet-500"></i>
+            </div>
+            <h3 class="font-display font-bold text-brand-950 text-lg text-center">Reassign Course</h3>
+            <p class="text-indigo-400 text-sm text-center mt-1 mb-5">
+                Currently assigned to <span id="reassign-current-name" class="font-semibold text-brand-900"></span>
+            </p>
+
+            <div id="reassign-error" class="hidden mb-3 flex items-center gap-2 bg-rose-50 border border-rose-200 text-rose-600 text-xs font-medium px-3 py-2 rounded-xl">
+                <i data-lucide="alert-circle" class="w-3.5 h-3.5 shrink-0"></i>
+                <span id="reassign-error-text"></span>
+            </div>
+
+            <div class="space-y-3">
+                <div class="space-y-1">
+                    <label class="text-[10px] font-semibold text-brand-800 uppercase tracking-wider">Reassign To</label>
+                    <select id="reassign-to-faculty"
+                            class="w-full bg-indigo-50/50 border border-indigo-100 text-brand-900 text-sm px-4 py-2.5 rounded-xl focus:outline-none focus:border-indigo-400 appearance-none">
+                        <option value="">— Select faculty member —</option>
+                    </select>
+                </div>
+                <div class="space-y-1">
+                    <label class="text-[10px] font-semibold text-brand-800 uppercase tracking-wider">Reason (optional)</label>
+                    <textarea id="reassign-reason" rows="2" placeholder="e.g. Faculty on leave, overload correction..."
+                          class="w-full bg-indigo-50/50 border border-indigo-100 text-brand-900 text-sm px-4 py-2.5 rounded-xl placeholder-indigo-300 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all resize-none"></textarea>
+                </div>
+            </div>
+
+            <div class="flex gap-3 mt-5">
+                <button type="button" onclick="closeModal('reassign-modal')"
                         class="flex-1 py-2.5 rounded-xl border border-indigo-100 text-brand-700 text-sm font-semibold hover:bg-indigo-50 transition-colors">
                     Cancel
                 </button>
-                <button type="submit"
-                        class="flex-1 py-2.5 rounded-xl bg-rose-500 text-white text-sm font-semibold hover:bg-rose-600 transition-colors">
-                    Delete
-                </button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<!-- Reassign modal -->
-<div id="reassign-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
-    <div class="absolute inset-0 bg-brand-950/40 backdrop-blur-sm" onclick="closeModal('reassign-modal')"></div>
-    <div class="relative bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md">
-        <div class="w-12 h-12 rounded-2xl bg-violet-50 flex items-center justify-center mx-auto mb-4">
-            <i data-lucide="repeat" class="w-6 h-6 text-violet-500"></i>
-        </div>
-        <h3 class="font-display font-bold text-brand-950 text-lg text-center">Reassign Course</h3>
-        <p class="text-indigo-400 text-sm text-center mt-1 mb-5">
-            Currently assigned to <span id="reassign-current-name" class="font-semibold text-brand-900"></span>
-        </p>
-
-        <div id="reassign-error" class="hidden mb-3 flex items-center gap-2 bg-rose-50 border border-rose-200 text-rose-600 text-xs font-medium px-3 py-2 rounded-xl">
-            <i data-lucide="alert-circle" class="w-3.5 h-3.5 shrink-0"></i>
-            <span id="reassign-error-text"></span>
-        </div>
-
-        <div class="space-y-3">
-            <div class="space-y-1">
-                <label class="text-[10px] font-semibold text-brand-800 uppercase tracking-wider">Reassign To</label>
-                <select id="reassign-to-faculty"
-                        class="w-full bg-indigo-50/50 border border-indigo-100 text-brand-900 text-sm px-4 py-2.5 rounded-xl focus:outline-none focus:border-indigo-400 appearance-none">
-                    <option value="">— Select faculty member —</option>
-                </select>
-            </div>
-            <div class="space-y-1">
-                <label class="text-[10px] font-semibold text-brand-800 uppercase tracking-wider">Reason (optional)</label>
-                <textarea id="reassign-reason" rows="2" placeholder="e.g. Faculty on leave, overload correction..."
-                          class="w-full bg-indigo-50/50 border border-indigo-100 text-brand-900 text-sm px-4 py-2.5 rounded-xl placeholder-indigo-300 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all resize-none"></textarea>
-            </div>
-        </div>
-
-        <div class="flex gap-3 mt-5">
-            <button type="button" onclick="closeModal('reassign-modal')"
-                    class="flex-1 py-2.5 rounded-xl border border-indigo-100 text-brand-700 text-sm font-semibold hover:bg-indigo-50 transition-colors">
-                Cancel
-            </button>
-            <button type="button" onclick="submitReassign()"
-                    class="flex-1 py-2.5 rounded-xl bg-violet-500 text-white text-sm font-semibold hover:bg-violet-600 transition-colors">
-                Reassign
-            </button>
-        </div>
-    </div>
-</div>
-
-<!-- Standards modal -->
-<div id="standards-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
-    <div class="absolute inset-0 bg-brand-950/40 backdrop-blur-sm" onclick="closeModal('standards-modal')"></div>
-    <div class="relative bg-white rounded-2xl shadow-2xl p-6 w-full max-w-2xl max-h-[85vh] overflow-y-auto">
-        <div class="flex items-center justify-between mb-4">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-2xl bg-indigo-50 flex items-center justify-center">
-                    <i data-lucide="sliders-horizontal" class="w-5 h-5 text-indigo-500"></i>
-                </div>
-                <div>
-                    <h3 class="font-display font-bold text-brand-950 text-lg">Workload Standards</h3>
-                    <p class="text-xs text-indigo-400">Credit hour thresholds per department per semester</p>
-                </div>
-            </div>
-            <button onclick="closeModal('standards-modal')" class="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-400 hover:bg-indigo-100">
-                <i data-lucide="x" class="w-4 h-4"></i>
-            </button>
-        </div>
-
-        <div id="standards-error" class="hidden mb-3 flex items-center gap-2 bg-rose-50 border border-rose-200 text-rose-600 text-xs font-medium px-3 py-2 rounded-xl">
-            <i data-lucide="alert-circle" class="w-3.5 h-3.5 shrink-0"></i>
-            <span id="standards-error-text"></span>
-        </div>
-
-        <!-- Add/Edit form -->
-        <div class="bg-indigo-50/50 border border-indigo-100 rounded-xl p-4 mb-4">
-            <input type="hidden" id="std-ws-id" value="0" />
-            <div class="grid grid-cols-2 gap-3 mb-3">
-                <div class="space-y-1">
-                    <label class="text-[10px] font-semibold text-brand-800 uppercase tracking-wider">Department</label>
-                    <select id="std-dept"
-                            class="w-full bg-white border border-indigo-100 text-brand-900 text-sm px-3 py-2 rounded-lg focus:outline-none focus:border-indigo-400 appearance-none">
-                        @foreach (var dept in (dynamic)ViewBag.Departments)
-                        {
-                            <option value="@dept.DeptId">@dept.DeptName</option>
-                        }
-                    </select>
-                </div>
-                <div class="space-y-1">
-                    <label class="text-[10px] font-semibold text-brand-800 uppercase tracking-wider">Semester</label>
-                    <select id="std-sem"
-                            class="w-full bg-white border border-indigo-100 text-brand-900 text-sm px-3 py-2 rounded-lg focus:outline-none focus:border-indigo-400 appearance-none">
-                        @foreach (var sem in (dynamic)ViewBag.Semesters)
-                        {
-                            <option value="@sem.SemId">@sem.SemName</option>
-                        }
-                    </select>
-                </div>
-            </div>
-            <div class="grid grid-cols-3 gap-3 mb-3">
-                <div class="space-y-1">
-                    <label class="text-[10px] font-semibold text-brand-800 uppercase tracking-wider">Min Hours</label>
-                    <input type="number" id="std-min" min="1" class="w-full bg-white border border-indigo-100 text-brand-900 text-sm px-3 py-2 rounded-lg focus:outline-none focus:border-indigo-400" />
-                </div>
-                <div class="space-y-1">
-                    <label class="text-[10px] font-semibold text-brand-800 uppercase tracking-wider">Standard Hours</label>
-                    <input type="number" id="std-std" min="1" class="w-full bg-white border border-indigo-100 text-brand-900 text-sm px-3 py-2 rounded-lg focus:outline-none focus:border-indigo-400" />
-                </div>
-                <div class="space-y-1">
-                    <label class="text-[10px] font-semibold text-brand-800 uppercase tracking-wider">Max Hours</label>
-                    <input type="number" id="std-max" min="1" class="w-full bg-white border border-indigo-100 text-brand-900 text-sm px-3 py-2 rounded-lg focus:outline-none focus:border-indigo-400" />
-                </div>
-            </div>
-            <div class="flex gap-2">
-                <button onclick="saveStandard()" id="std-save-btn"
-                        class="flex-1 py-2 rounded-lg bg-indigo-500 text-white text-sm font-semibold hover:bg-indigo-600 transition-colors">
-                    Add Standard
-                </button>
-                <button onclick="resetStandardForm()" id="std-cancel-btn"
-                        class="hidden px-4 py-2 rounded-lg border border-indigo-100 text-brand-700 text-sm font-semibold hover:bg-indigo-50 transition-colors">
-                    Cancel
+                <button type="button" onclick="submitReassign()"
+                        class="flex-1 py-2.5 rounded-xl bg-violet-500 text-white text-sm font-semibold hover:bg-violet-600 transition-colors">
+                    Reassign
                 </button>
             </div>
         </div>
+    </div>
 
-        <!-- Existing standards list -->
-        <div id="standards-list" class="space-y-2">
-            <p class="text-sm text-indigo-300 text-center py-4">Loading...</p>
+    <!-- Standards modal -->
+    <div id="standards-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-brand-950/40 backdrop-blur-sm" onclick="closeModal('standards-modal')"></div>
+        <div class="relative bg-white rounded-2xl shadow-2xl p-6 w-full max-w-2xl max-h-[85vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-2xl bg-indigo-50 flex items-center justify-center">
+                        <i data-lucide="sliders-horizontal" class="w-5 h-5 text-indigo-500"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-display font-bold text-brand-950 text-lg">Workload Standards</h3>
+                        <p class="text-xs text-indigo-400">Credit hour thresholds per department per semester</p>
+                    </div>
+                </div>
+                <button onclick="closeModal('standards-modal')" class="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-400 hover:bg-indigo-100">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <div id="standards-error" class="hidden mb-3 flex items-center gap-2 bg-rose-50 border border-rose-200 text-rose-600 text-xs font-medium px-3 py-2 rounded-xl">
+                <i data-lucide="alert-circle" class="w-3.5 h-3.5 shrink-0"></i>
+                <span id="standards-error-text"></span>
+            </div>
+
+            <!-- Add/Edit form -->
+            <div class="bg-indigo-50/50 border border-indigo-100 rounded-xl p-4 mb-4">
+                <input type="hidden" id="std-ws-id" value="0" />
+                <div class="grid grid-cols-2 gap-3 mb-3">
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-semibold text-brand-800 uppercase tracking-wider">Department</label>
+                        <select id="std-dept"
+                                class="w-full bg-white border border-indigo-100 text-brand-900 text-sm px-3 py-2 rounded-lg focus:outline-none focus:border-indigo-400 appearance-none">
+                            @foreach (var dept in (dynamic)ViewBag.Departments)
+                            {
+                                <option value="@dept.DeptId">@dept.DeptName</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-semibold text-brand-800 uppercase tracking-wider">Semester</label>
+                        <select id="std-sem"
+                                class="w-full bg-white border border-indigo-100 text-brand-900 text-sm px-3 py-2 rounded-lg focus:outline-none focus:border-indigo-400 appearance-none">
+                            @foreach (var sem in (dynamic)ViewBag.Semesters)
+                            {
+                                <option value="@sem.SemId">@sem.SemName</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-3 gap-3 mb-3">
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-semibold text-brand-800 uppercase tracking-wider">Min Hours</label>
+                        <input type="number" id="std-min" min="1" class="w-full bg-white border border-indigo-100 text-brand-900 text-sm px-3 py-2 rounded-lg focus:outline-none focus:border-indigo-400" />
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-semibold text-brand-800 uppercase tracking-wider">Standard Hours</label>
+                        <input type="number" id="std-std" min="1" class="w-full bg-white border border-indigo-100 text-brand-900 text-sm px-3 py-2 rounded-lg focus:outline-none focus:border-indigo-400" />
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-semibold text-brand-800 uppercase tracking-wider">Max Hours</label>
+                        <input type="number" id="std-max" min="1" class="w-full bg-white border border-indigo-100 text-brand-900 text-sm px-3 py-2 rounded-lg focus:outline-none focus:border-indigo-400" />
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="saveStandard()" id="std-save-btn"
+                            class="flex-1 py-2 rounded-lg bg-indigo-500 text-white text-sm font-semibold hover:bg-indigo-600 transition-colors">
+                        Add Standard
+                    </button>
+                    <button onclick="resetStandardForm()" id="std-cancel-btn"
+                            class="hidden px-4 py-2 rounded-lg border border-indigo-100 text-brand-700 text-sm font-semibold hover:bg-indigo-50 transition-colors">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+
+            <!-- Existing standards list -->
+            <div id="standards-list" class="space-y-2">
+                <p class="text-sm text-indigo-300 text-center py-4">Loading...</p>
+            </div>
         </div>
     </div>
-</div>
+}
 
 @section Scripts {
     <script>
@@ -390,10 +406,13 @@
 
         // ── Reassign ──
         const facultyByDept = {};
-        @foreach (var f in (dynamic)ViewBag.FacultyList)
+        @if (!readOnly)
         {
-                @: facultyByDept[@f.DeptId] = facultyByDept[@f.DeptId] || [];
-                @: facultyByDept[@f.DeptId].push({ id: @f.EmpId, name: @Html.Raw(System.Text.Json.JsonSerializer.Serialize((string)f.Name)) });
+                @foreach (var f in (dynamic)ViewBag.FacultyList)
+                {
+                        @: facultyByDept[@f.DeptId] = facultyByDept[@f.DeptId] || [];
+                        @: facultyByDept[@f.DeptId].push({ id: @f.EmpId, name: @Html.Raw(System.Text.Json.JsonSerializer.Serialize((string)f.Name)) });
+                }
         }
 
         let currentReassignWaId = null;
